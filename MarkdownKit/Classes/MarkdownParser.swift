@@ -9,10 +9,42 @@
 import UIKit
 
 open class MarkdownParser {
+  public struct EnabledElements: OptionSet {
+    public let rawValue: Int
+
+    public init(rawValue: Int) {
+      self.rawValue = rawValue
+    }
+
+    public static let automaticLink = EnabledElements(rawValue: 1)
+    public static let header        = EnabledElements(rawValue: 1 << 1)
+    public static let list          = EnabledElements(rawValue: 1 << 2)
+    public static let quote         = EnabledElements(rawValue: 1 << 3)
+    public static let link          = EnabledElements(rawValue: 1 << 4)
+    public static let bold          = EnabledElements(rawValue: 1 << 5)
+    public static let italic        = EnabledElements(rawValue: 1 << 6)
+    public static let code          = EnabledElements(rawValue: 1 << 7)
+
+    public static let disabledAutomaticLink: EnabledElements = [
+      .header,
+      .list,
+      .quote,
+      .link,
+      .bold,
+      .italic,
+      .code,
+      ]
+
+    public static let all: EnabledElements = [
+      .disabledAutomaticLink,
+      .automaticLink,
+      ]
+  }
+
 
   // MARK: Element Arrays
   fileprivate var escapingElements: [MarkdownElement]
-  fileprivate var defaultElements: [MarkdownElement]
+  fileprivate var defaultElements: [MarkdownElement] = []
   fileprivate var unescapingElements: [MarkdownElement]
 
   // Elements matched after escaping and before the default
@@ -37,13 +69,17 @@ open class MarkdownParser {
   fileprivate var unescaping = MarkdownUnescaping()
 
   // MARK: Configuration
-  /// Enables or disables detection of URLs even without Markdown format
-  open var automaticLinkDetectionEnabled: Bool = true
+  /// Enables individual Markdown elements and automatic link detection
+  open var enabledElements: EnabledElements {
+    didSet {
+      updateDefaultElements()
+    }
+  }
   open let font: UIFont
 
   // MARK: Initializer
   public init(font: UIFont = UIFont.systemFont(ofSize: UIFont.smallSystemFontSize),
-              automaticLinkDetectionEnabled: Bool = true,
+              enabledElements: EnabledElements = .all,
               customElements: [MarkdownElement] = [],
               preprocessElements: [MarkdownElement] = []) {
     self.font = font
@@ -57,12 +93,12 @@ open class MarkdownParser {
     italic = MarkdownItalic(font: font)
     code = MarkdownCode(font: font)
 
-    self.automaticLinkDetectionEnabled = automaticLinkDetectionEnabled
     self.escapingElements = [codeEscaping, escaping]
-    self.defaultElements = [header, list, quote, link, automaticLink, bold, italic]
     self.unescapingElements = [code, unescaping]
     self.customElements = customElements
     self.preprocessElements = preprocessElements
+    self.enabledElements = enabledElements
+    updateDefaultElements()
   }
 
   // MARK: Element Extensibility
@@ -94,11 +130,26 @@ open class MarkdownParser {
     elements.append(contentsOf: customElements)
     elements.append(contentsOf: unescapingElements)
     elements.forEach { element in
-      if automaticLinkDetectionEnabled || type(of: element) != MarkdownAutomaticLink.self {
-        element.parse(attributedString)
-      }
+      element.parse(attributedString)
     }
     return attributedString
+  }
+
+  fileprivate func updateDefaultElements() {
+    let pairs: [(EnabledElements, MarkdownElement)] = [
+      (.automaticLink, automaticLink),
+      (.header, header),
+      (.list, list),
+      (.quote, quote),
+      (.link, link),
+      (.bold, bold),
+      (.italic, italic),
+      (.code, code),
+      ]
+    defaultElements = pairs.filter({ (enabled, _) in
+      enabledElements.contains(enabled) })
+      .map({ (_, element) in
+        element })
   }
 
 }
