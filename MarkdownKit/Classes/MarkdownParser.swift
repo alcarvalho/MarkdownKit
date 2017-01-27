@@ -15,6 +15,10 @@ open class MarkdownParser {
   fileprivate var defaultElements: [MarkdownElement]
   fileprivate var unescapingElements: [MarkdownElement]
 
+  // Elements matched after escaping and before the default
+  open var preprocessElements: [MarkdownElement]
+
+  // Custom elements, matched after default
   open var customElements: [MarkdownElement]
 
   // MARK: Basic Elements
@@ -40,7 +44,8 @@ open class MarkdownParser {
   // MARK: Initializer
   public init(font: UIFont = UIFont.systemFont(ofSize: UIFont.smallSystemFontSize),
               automaticLinkDetectionEnabled: Bool = true,
-              customElements: [MarkdownElement] = []) {
+              customElements: [MarkdownElement] = [],
+              preprocessElements: [MarkdownElement] = []) {
     self.font = font
 
     header = MarkdownHeader(font: font)
@@ -57,6 +62,7 @@ open class MarkdownParser {
     self.defaultElements = [header, list, quote, link, automaticLink, bold, italic]
     self.unescapingElements = [code, unescaping]
     self.customElements = customElements
+    self.preprocessElements = preprocessElements
   }
 
   // MARK: Element Extensibility
@@ -83,6 +89,7 @@ open class MarkdownParser {
     attributedString.addAttribute(NSFontAttributeName, value: font,
                                   range: NSRange(location: 0, length: attributedString.length))
     var elements: [MarkdownElement] = escapingElements
+    elements.append(contentsOf: preprocessElements)
     elements.append(contentsOf: defaultElements)
     elements.append(contentsOf: customElements)
     elements.append(contentsOf: unescapingElements)
